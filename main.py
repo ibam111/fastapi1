@@ -38,9 +38,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# إعداد الملفات الثابتة
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
 # نموذج البيانات مع التحقق
 class BirthData(BaseModel):
     father_id: int = Field(..., ge=1000000000, le=9999999999, description="رقم هوية الأب")
