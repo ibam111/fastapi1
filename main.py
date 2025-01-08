@@ -12,10 +12,20 @@ import logging
 from functools import wraps
 import time
 from datetime import datetime, timedelta
-from dotenv import load_dotenv
 
-# تحميل متغيرات البيئة من ملف .env
-load_dotenv()
+# تضمين بيانات اعتماد Firebase مباشرة في الكود
+firebase_credentials = {
+    "type": "service_account",
+    "project_id": "your-project-id",  # استبدل بقيمك
+    "private_key_id": "your-private-key-id",  # استبدل بقيمك
+    "private_key": "-----BEGIN PRIVATE KEY-----\nYOUR_PRIVATE_KEY\n-----END PRIVATE KEY-----\n",  # استبدل بقيمك
+    "client_email": "your-client-email",  # استبدل بقيمك
+    "client_id": "your-client-id",  # استبدل بقيمك
+    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+    "token_uri": "https://oauth2.googleapis.com/token",
+    "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+    "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/your-client-email"  # استبدل بقيمك
+}
 
 # إعداد ترميز UTF-8
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
@@ -49,13 +59,9 @@ app.add_middleware(
 
 # تهيئة Firebase Admin SDK
 try:
-    cred_path = os.getenv("FIREBASE_CREDENTIALS_PATH")
-    if not cred_path:
-        raise RuntimeError("لم يتم تعيين متغير البيئة FIREBASE_CREDENTIALS_PATH.")
-
-    cred = credentials.Certificate(cred_path)
+    cred = credentials.Certificate(firebase_credentials)
     firebase_admin.initialize_app(cred, {
-        'databaseURL': 'https://birth-2bd8b-default-rtdb.firebaseio.com'
+        'databaseURL': 'https://birth-2bd8b-default-rtdb.firebaseio.com'  # استبدل برابط قاعدة البيانات الخاصة بك
     })
     logger.info("تم تهيئة Firebase بنجاح.")
 except Exception as e:
