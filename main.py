@@ -12,6 +12,10 @@ import logging
 from functools import wraps
 import time
 from datetime import datetime, timedelta
+from dotenv import load_dotenv
+
+# تحميل متغيرات البيئة من ملف .env
+load_dotenv()
 
 # إعداد ترميز UTF-8
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
@@ -45,7 +49,10 @@ app.add_middleware(
 
 # تهيئة Firebase Admin SDK
 try:
-    cred_path = os.getenv("FIREBASE_CREDENTIALS_PATH", "F:/progect/birth-2bd8b-firebase-adminsdk-mpypb-3b85b9dc48.json")  # تحديث المسار هنا
+    cred_path = os.getenv("FIREBASE_CREDENTIALS_PATH")
+    if not cred_path:
+        raise RuntimeError("لم يتم تعيين متغير البيئة FIREBASE_CREDENTIALS_PATH.")
+
     cred = credentials.Certificate(cred_path)
     firebase_admin.initialize_app(cred, {
         'databaseURL': 'https://birth-2bd8b-default-rtdb.firebaseio.com'
