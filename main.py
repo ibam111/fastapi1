@@ -18,7 +18,7 @@ firebase_credentials = {
     "type": "service_account",
     "project_id": "your-project-id",  # استبدل بقيمك
     "private_key_id": "your-private-key-id",  # استبدل بقيمك
-    "private_key": "-----BEGIN PRIVATE KEY-----\nYOUR_PRIVATE_KEY\n-----END PRIVATE KEY-----\n",  # استبدل بقيمك
+    "private_key": "-----BEGIN PRIVATE KEY-----\nYOUR_NEW_PRIVATE_KEY\n-----END PRIVATE KEY-----\n",  # استبدل بقيمك
     "client_email": "your-client-email",  # استبدل بقيمك
     "client_id": "your-client-id",  # استبدل بقيمك
     "auth_uri": "https://accounts.google.com/o/oauth2/auth",
