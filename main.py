@@ -46,7 +46,7 @@ app.add_middleware(
 # تهيئة Firebase Admin SDK
 try:
     # تحميل ملف credentials.json
-    cred_path = os.getenv("FIREBASE_CREDENTIALS_PATH", "birth-2bd8b-firebase-adminsdk-mpypb-3b85b9dc48.json")
+    cred_path = os.getenv("FIREBASE_CREDENTIALS_PATH", "birth-2bd8b-firebase-adminsdk-mpypb-14e88ee703.json")
     cred = credentials.Certificate(cred_path)
     firebase_admin.initialize_app(cred, {
         'databaseURL': 'https://birth-2bd8b-default-rtdb.firebaseio.com'
