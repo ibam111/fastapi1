@@ -41,11 +41,22 @@ app.add_middleware(
 # نموذج البيانات مع التحقق
 class BirthData(BaseModel):
     father_id: int = Field(..., ge=1000000000, le=9999999999, description="رقم هوية الأب")
+    father_id_type: str = Field(..., description="نوع مستمسك الأب")
     father_full_name: str = Field(..., min_length=2, max_length=100, description="اسم الأب الرباعي")
     mother_id: int = Field(..., ge=1000000000, le=9999999999, description="رقم هوية الأم")
+    mother_id_type: str = Field(..., description="نوع مستمسك الأم")
     mother_name: str = Field(..., min_length=2, max_length=100, description="اسم الأم")
     hospital_name: str = Field(..., min_length=2, max_length=100, description="اسم المستشفى")
     birth_date: str = Field(..., pattern=r"^\d{4}-\d{2}-\d{2}$", description="تاريخ الميلاد (YYYY-MM-DD)")
+
+    def __init__(self, **data):
+        super().__init__(**data)
+        # Validate ID types
+        valid_types = ["هوية_احوال", "موحدة"]
+        if self.father_id_type not in valid_types:
+            raise ValueError("نوع مستمسك الأب غير صالح")
+        if self.mother_id_type not in valid_types:
+            raise ValueError("نوع مستمسك الأم غير صالح")
 
 # إدارة قاعدة البيانات
 class DatabaseManager:
@@ -60,8 +71,10 @@ class DatabaseManager:
             CREATE TABLE IF NOT EXISTS births (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 father_id INTEGER,
+                father_id_type TEXT,
                 father_full_name TEXT,
                 mother_id INTEGER,
+                mother_id_type TEXT,
                 mother_name TEXT,
                 hospital_name TEXT,
                 birth_date TEXT,
@@ -149,16 +162,20 @@ async def save_data(data: BirthData):
         logger.error(f"خطأ في حفظ البيانات: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/search/{search_id}")
-async def search_data(search_id: str):
+@app.get("/search/")
+async def search_data(father_id: int, mother_id: int):
     try:
         with db_manager.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT mother_name, father_full_name, hospital_name, birth_date 
+                SELECT 
+                    father_full_name,  # اسم الأب
+                    mother_name,       # اسم الأم
+                    hospital_name,     # اسم المستشفى
+                    birth_date         # تاريخ الميلاد
                 FROM births 
-                WHERE father_id = ? OR mother_id = ?
-            """, (search_id, search_id))
+                WHERE father_id = ? AND mother_id = ?
+            """, (father_id, mother_id))
             results = cursor.fetchall()
             
             if not results:
@@ -167,13 +184,13 @@ async def search_data(search_id: str):
             formatted_results = []
             for result in results:
                 formatted_results.append({
-                    "mother_name": result[0],
-                    "father_full_name": result[1],
-                    "hospital_name": result[2],
-                    "birth_date": result[3]
+                    "father_full_name": result[0],  # اسم الأب
+                    "mother_name": result[1],       # اسم الأم
+                    "hospital_name": result[2],     # اسم المستشفى
+                    "birth_date": result[3]         # تاريخ الميلاد
                 })
             
-            return {"results": formatted_results}
+            return {"data": formatted_results}
 
     except Exception as e:
         logger.error(f"خطأ في البحث: {str(e)}")
