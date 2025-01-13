@@ -162,20 +162,22 @@ async def save_data(data: BirthData):
         logger.error(f"خطأ في حفظ البيانات: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/search/")
-async def search_data(father_id: int, mother_id: int):
+@app.get("/search/{search_id}")
+async def search_data(search_id: str):
     try:
         with db_manager.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
                 SELECT 
-                    father_full_name,  # اسم الأب
-                    mother_name,       # اسم الأم
-                    hospital_name,     # اسم المستشفى
-                    birth_date         # تاريخ الميلاد
+                    mother_name, 
+                    father_full_name, 
+                    hospital_name, 
+                    birth_date,
+                    father_id_type,
+                    mother_id_type
                 FROM births 
-                WHERE father_id = ? AND mother_id = ?
-            """, (father_id, mother_id))
+                WHERE father_id = ? OR mother_id = ?
+            """, (search_id, search_id))
             results = cursor.fetchall()
             
             if not results:
@@ -184,13 +186,15 @@ async def search_data(father_id: int, mother_id: int):
             formatted_results = []
             for result in results:
                 formatted_results.append({
-                    "father_full_name": result[0],  # اسم الأب
-                    "mother_name": result[1],       # اسم الأم
-                    "hospital_name": result[2],     # اسم المستشفى
-                    "birth_date": result[3]         # تاريخ الميلاد
+                    "mother_name": result[0],
+                    "father_full_name": result[1],
+                    "hospital_name": result[2],
+                    "birth_date": result[3],
+                    "father_id_type": result[4],
+                    "mother_id_type": result[5]
                 })
             
-            return {"data": formatted_results}
+            return {"results": formatted_results}
 
     except Exception as e:
         logger.error(f"خطأ في البحث: {str(e)}")
