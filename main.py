@@ -76,8 +76,9 @@ class DatabaseManager:
     def init_db(self):
         with self.get_connection() as conn:
             cursor = conn.cursor()
+            # تنفيذ الأوامر بشكل منفصل
+            cursor.execute("DROP TABLE IF EXISTS births")
             cursor.execute("""
-            DROP TABLE IF EXISTS births;
             CREATE TABLE IF NOT EXISTS births (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 father_id TEXT NOT NULL,
@@ -164,3 +165,7 @@ async def delete_old_entries():
             return {"message": "تم حذف السجلات القديمة بنجاح"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/")
+async def root():
+    return {"status": "online", "message": "نظام تسجيل المواليد يعمل"}
