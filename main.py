@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException, Depends
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional
 from datetime import datetime, timedelta
 import sqlite3
@@ -8,7 +8,6 @@ import re
 
 app = FastAPI(title="نظام تسجيل المواليد")
 
-# نموذج البيانات
 class BirthData(BaseModel):
     father_id: str = Field(..., pattern=r'^\d{8,12}$', description="رقم هوية الأب")
     father_id_type: str = Field(..., description="نوع مستمسك الأب")
@@ -19,34 +18,38 @@ class BirthData(BaseModel):
     hospital_name: str = Field(..., min_length=2, max_length=100, description="اسم المستشفى")
     birth_date: str = Field(..., pattern=r"^\d{4}-\d{2}-\d{2}$", description="تاريخ الميلاد (YYYY-MM-DD)")
 
-    @validator('father_id')
-    def validate_father_id(cls, v, values):
+    @field_validator('father_id')
+    @classmethod
+    def validate_father_id(cls, v: str, info):
         if not v.isdigit():
             raise ValueError("يجب أن يحتوي رقم الهوية على أرقام فقط")
-        if values.get('father_id_type') == "موحدة" and len(v) != 12:
+        if info.data.get('father_id_type') == "موحدة" and len(v) != 12:
             raise ValueError("رقم الموحدة للأب يجب أن يكون 12 رقم")
-        elif values.get('father_id_type') == "هوية_احوال" and len(v) != 8:
+        elif info.data.get('father_id_type') == "هوية_احوال" and len(v) != 8:
             raise ValueError("رقم هوية الأحوال للأب يجب أن يكون 8 أرقام")
         return v
 
-    @validator('mother_id')
-    def validate_mother_id(cls, v, values):
+    @field_validator('mother_id')
+    @classmethod
+    def validate_mother_id(cls, v: str, info):
         if not v.isdigit():
             raise ValueError("يجب أن يحتوي رقم الهوية على أرقام فقط")
-        if values.get('mother_id_type') == "موحدة" and len(v) != 12:
+        if info.data.get('mother_id_type') == "موحدة" and len(v) != 12:
             raise ValueError("رقم الموحدة للأم يجب أن يكون 12 رقم")
-        elif values.get('mother_id_type') == "هوية_احوال" and len(v) != 8:
+        elif info.data.get('mother_id_type') == "هوية_احوال" and len(v) != 8:
             raise ValueError("رقم هوية الأحوال للأم يجب أن يكون 8 أرقام")
         return v
 
-    @validator('father_full_name', 'mother_name', 'hospital_name')
-    def validate_arabic_name(cls, v):
+    @field_validator('father_full_name', 'mother_name', 'hospital_name')
+    @classmethod
+    def validate_arabic_name(cls, v: str):
         if not re.match(r'^[\u0600-\u06FF\s]{2,100}$', v):
             raise ValueError("يجب أن يحتوي الاسم على حروف عربية فقط")
         return v
 
-    @validator('birth_date')
-    def validate_birth_date(cls, v):
+    @field_validator('birth_date')
+    @classmethod
+    def validate_birth_date(cls, v: str):
         try:
             date = datetime.strptime(v, "%Y-%m-%d")
             today = datetime.now()
@@ -54,14 +57,15 @@ class BirthData(BaseModel):
                 raise ValueError("لا يمكن أن يكون تاريخ الميلاد في المستقبل")
             if date.year < 1900:
                 raise ValueError("تاريخ الميلاد غير صالح")
-            if (today - date).days > 45:  # التحقق من أن التاريخ ليس قديماً جداً
+            if (today - date).days > 45:
                 raise ValueError("لا يمكن تسجيل مواليد بعد 45 يوم من الولادة")
             return v
         except ValueError as e:
             raise ValueError(str(e))
 
-    @validator('father_id_type', 'mother_id_type')
-    def validate_id_type(cls, v):
+    @field_validator('father_id_type', 'mother_id_type')
+    @classmethod
+    def validate_id_type(cls, v: str):
         valid_types = ['موحدة', 'هوية_احوال']
         if v not in valid_types:
             raise ValueError(f"نوع الهوية يجب أن يكون أحد القيم التالية: {', '.join(valid_types)}")
