@@ -70,12 +70,14 @@ class BirthData(BaseModel):
 # إدارة قاعدة البيانات
 class DatabaseManager:
     def __init__(self, db_name="births.db"):
-        self.db_name = db_name
+        self.db_name = "births.db"
         self.init_db()
 
     def init_db(self):
         with self.get_connection() as conn:
             cursor = conn.cursor()
+            # تنفيذ الأوامر بشكل منفصل
+            cursor.execute("DROP TABLE IF EXISTS births")
             cursor.execute("""
             CREATE TABLE IF NOT EXISTS births (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -87,7 +89,7 @@ class DatabaseManager:
                 mother_name TEXT NOT NULL,
                 hospital_name TEXT NOT NULL,
                 birth_date TEXT NOT NULL,
-                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                created_at TEXT NOT NULL,
                 UNIQUE(father_id, mother_id)
             )""")
             conn.commit()
@@ -97,18 +99,6 @@ class DatabaseManager:
         conn = sqlite3.connect(self.db_name)
         try:
             yield conn
-        finally:
-            conn.close()
-
-    @contextmanager
-    def get_transaction(self):
-        conn = self.get_connection()
-        try:
-            yield conn
-            conn.commit()
-        except:
-            conn.rollback()
-            raise
         finally:
             conn.close()
 
@@ -126,54 +116,55 @@ async def save_data(data: BirthData):
                 detail="لا يمكن تسجيل مواليد بعد 45 يوم من الولادة"
             )
 
-        with db_manager.get_transaction() as conn:
+        with db_manager.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
             SELECT hospital_name FROM births 
-            WHERE father_id = %s AND mother_id = %s
+            WHERE father_id = ? AND mother_id = ?
             """, (data.father_id, data.mother_id))
             if cursor.fetchone():
                 raise HTTPException(status_code=400, detail="تم إدخال هذه البيانات مسبقاً.")
             
+            created_at = datetime.now().isoformat()
             cursor.execute("""
-            INSERT INTO births (father_id, father_id_type, father_full_name, mother_id, mother_id_type, mother_name, hospital_name, birth_date)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-            """, (data.father_id, data.father_id_type, data.father_full_name, data.mother_id, data.mother_id_type, data.mother_name, data.hospital_name, data.birth_date))
+            INSERT INTO births (father_id, father_id_type, father_full_name, mother_id, mother_id_type, mother_name, hospital_name, birth_date, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (data.father_id, data.father_id_type, data.father_full_name, data.mother_id, data.mother_id_type, data.mother_name, data.hospital_name, data.birth_date, created_at))
             conn.commit()
         return {"message": "تم حفظ البيانات بنجاح"}
-    except Error as e:
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.get("/search/{search_id}")
 async def search_data(search_id: str):
     try:
-        with db_manager.get_transaction() as conn:
+        with db_manager.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
             SELECT mother_name, father_full_name, hospital_name, birth_date, father_id_type, mother_id_type 
             FROM births 
-            WHERE father_id = %s OR mother_id = %s
+            WHERE father_id = ? OR mother_id = ?
             """, (search_id, search_id))
             results = cursor.fetchall()
             if not results:
                 raise HTTPException(status_code=404, detail="لم يتم العثور على نتائج")
             return {"results": [{"mother_name": r[0], "father_full_name": r[1], "hospital_name": r[2], 
                                "birth_date": r[3], "father_id_type": r[4], "mother_id_type": r[5]} for r in results]}
-    except Error as e:
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.delete("/delete-old-entries/")
 async def delete_old_entries():
     try:
         cutoff_date = (datetime.now() - timedelta(days=45)).strftime("%Y-%m-%d")
-        with db_manager.get_transaction() as conn:
+        with db_manager.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("DELETE FROM births WHERE birth_date < %s", (cutoff_date,))
+            cursor.execute("DELETE FROM births WHERE birth_date < ?", (cutoff_date,))
             conn.commit()
             return {"message": "تم حذف السجلات القديمة بنجاح"}
-    except Error as e:
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
 
 @app.get("/")
 async def root():
