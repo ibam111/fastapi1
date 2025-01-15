@@ -70,7 +70,7 @@ class BirthData(BaseModel):
 # إدارة قاعدة البيانات
 class DatabaseManager:
     def __init__(self, db_name="births.db"):
-        self.db_name = "sqlite:///./births.db"
+        self.db_name = "births.db"
         self.init_db()
 
     def init_db(self):
