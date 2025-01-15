@@ -2,8 +2,7 @@ from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel, Field, validator
 from typing import Optional
 from datetime import datetime, timedelta
-import mysql.connector
-from mysql.connector import Error
+import sqlite3
 from contextlib import contextmanager
 import re
 
@@ -70,80 +69,32 @@ class BirthData(BaseModel):
 
 # إدارة قاعدة البيانات
 class DatabaseManager:
-    def __init__(self):
-        self.config = {
-            'host': 'localhost',
-            'user': 'root',
-            'password': 'Ib1234567am#',
-            'charset': 'utf8mb4',
-            'autocommit': True
-        }
-        self.database = 'births_db'
-        self.create_database()
-        self.config['database'] = self.database
+    def __init__(self, db_name="births.db"):
+        self.db_name = db_name
         self.init_db()
 
-    def create_database(self):
-        try:
-            conn = mysql.connector.connect(**self.config)
-            cursor = conn.cursor()
-            cursor.execute(f"CREATE DATABASE IF NOT EXISTS {self.database} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")
-            conn.commit()
-        except Error as e:
-            print(f"Error creating database: {e}")
-            raise HTTPException(
-                status_code=500, 
-                detail=f"خطأ في إنشاء قاعدة البيانات: {str(e)}"
-            )
-        finally:
-            cursor.close()
-            conn.close()
-
-    def get_connection(self):
-        try:
-            conn = mysql.connector.connect(**self.config)
-            return conn
-        except Error as e:
-            print(f"Error connecting to MySQL: {e}")
-            raise HTTPException(
-                status_code=500, 
-                detail=f"خطأ في الاتصال بقاعدة البيانات: {str(e)}"
-            )
-
     def init_db(self):
-        try:
-            with self.get_connection() as conn:
-                cursor = conn.cursor()
-                
-                # إنشاء الجدول مع التأكد من عدم وجوده
-                cursor.execute("""
-                CREATE TABLE IF NOT EXISTS births (
-                    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-                    father_id VARCHAR(12) NOT NULL,
-                    father_id_type ENUM('موحدة', 'هوية_احوال') NOT NULL,
-                    father_full_name VARCHAR(100) NOT NULL,
-                    mother_id VARCHAR(12) NOT NULL,
-                    mother_id_type ENUM('موحدة', 'هوية_احوال') NOT NULL,
-                    mother_name VARCHAR(100) NOT NULL,
-                    hospital_name VARCHAR(100) NOT NULL,
-                    birth_date DATE NOT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    UNIQUE KEY unique_parents (father_id, mother_id),
-                    INDEX idx_father_id (father_id),
-                    INDEX idx_mother_id (mother_id)
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-                """)
-                conn.commit()
-        except Error as e:
-            print(f"Database initialization error: {e}")
-            raise HTTPException(
-                status_code=500, 
-                detail=f"خطأ في تهيئة قاعدة البيانات: {str(e)}"
-            )
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+            CREATE TABLE IF NOT EXISTS births (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                father_id TEXT NOT NULL,
+                father_id_type TEXT NOT NULL CHECK (father_id_type IN ('موحدة', 'هوية_احوال')),
+                father_full_name TEXT NOT NULL,
+                mother_id TEXT NOT NULL,
+                mother_id_type TEXT NOT NULL CHECK (mother_id_type IN ('موحدة', 'هوية_احوال')),
+                mother_name TEXT NOT NULL,
+                hospital_name TEXT NOT NULL,
+                birth_date TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(father_id, mother_id)
+            )""")
+            conn.commit()
 
     @contextmanager
-    def get_connection_context(self):
-        conn = self.get_connection()
+    def get_connection(self):
+        conn = sqlite3.connect(self.db_name)
         try:
             yield conn
         finally:
@@ -160,27 +111,6 @@ class DatabaseManager:
             raise
         finally:
             conn.close()
-
-    def execute_query(self, query, params=None):
-        conn = None
-        cursor = None
-        try:
-            conn = mysql.connector.connect(**self.config)
-            cursor = conn.cursor()
-            cursor.execute(query, params or ())
-            return cursor
-        except Error as e:
-            if conn:
-                conn.rollback()
-            raise HTTPException(
-                status_code=500,
-                detail=f"خطأ في تنفيذ الاستعلام: {str(e)}"
-            )
-        finally:
-            if cursor:
-                cursor.close()
-            if conn:
-                conn.close()
 
 # تهيئة قاعدة البيانات
 db_manager = DatabaseManager()
